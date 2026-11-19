@@ -1,0 +1,24 @@
+{
+  "name": "NexusAI Studio - Trợ Lý AI Cá Nhân",
+  "short_name": "NexusAI",
+  "description": "Trợ lý Trí tuệ Nhân tạo Cá nhân hóa của Trương Thuỵ Anh Quân",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121316",
+  "theme_color": "#10a37f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8649/8649595.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8649/8649595.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

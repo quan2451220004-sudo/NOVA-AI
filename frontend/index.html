@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAI Studio | AI Cá Nhân Hóa Chuẩn ChatGPT & Gemini</title>
+  
+  <!-- Hỗ trợ cài đặt thành App trên Điện thoại (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10a37f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NexusAI">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/8649/8649595.png">
+  
+  <!-- Thư viện Đăng Nhập Google Chính Thức (Google Identity Services) như ChatGPT/Claude -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Markdown & Code Highlight CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <h2 id="authTitle">Chào mừng tới NexusAI Studio</h2>
+        <p id="authSubtitle">Đăng nhập bằng tài khoản Google Gmail để bắt đầu</p>
+      </div>
+
+      <!-- Nút Đăng Nhập Bằng Google Chính Thức (Google Identity Services) -->
+      <div id="g_id_onload"
+           data-client_id="145230432612-pmhkcopv7cgq7asltmsnda6h0j0i8vg4.apps.googleusercontent.com"
+           data-context="signin"
+           data-ux_mode="popup"
+           data-callback="handleGoogleCredentialResponse"
+           data-auto_prompt="false">
+      </div>
+      <div class="google-official-btn-wrapper">
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="signin_with"
+             data-size="large"
+             data-logo_alignment="left"
+             data-width="100%">
+        </div>
+      </div>
+
+      <!-- Nút 1-Click Vào Thẳng Quyền Admin Cho Bạn -->
+      <button class="admin-quick-btn" id="adminQuickBtn" title="Dành riêng cho bạn: Vào thẳng quyền Admin không cần gõ mật khẩu">
+        <i class="fa-solid fa-crown"></i>
+        <span>Vào Ngay Quyền Admin (Trương Thuỵ Anh Quân)</span>
+      </button>
+
+      <div class="auth-divider">
+        <span>Hoặc nhập tài khoản Gmail</span>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLoginBtn">Đăng Nhập</button>
+        <button class="auth-tab" id="tabRegisterBtn">Đăng Ký Mới</button>
+      </div>
+
+      <form id="authForm" class="auth-form" onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label><i class="fa-regular fa-envelope"></i> Địa chỉ Gmail</label>
+          <input type="email" id="authEmail" placeholder="vidu@gmail.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label><i class="fa-solid fa-lock"></i> Mật khẩu</label>
+          <input type="password" id="authPassword" placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)..." required autocomplete="current-password">
+        </div>
+
+        <div class="auth-error-msg" id="authErrorMsg" style="display: none;"></div>
+
+        <button type="submit" class="auth-submit-btn" id="authSubmitBtn">
+          <span>Đăng Nhập</span> <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- GIAO DIỆN CHÍNH (SAU KHI ĐĂNG NHẬP) -->
+  <div class="app-layout" id="appLayout" style="display: none;">
+    <!-- Backdrop mờ khi mở Sidebar trên điện thoại -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <button class="new-chat-btn" id="newChatBtn">
+          <i class="fa-solid fa-plus"></i> Cuộc trò chuyện mới
+        </button>
+      </div>
+
+      <div class="chat-history-list" id="chatHistoryList">
+        <!-- Lịch sử chat được đồng bộ theo từng Gmail -->
+      </div>
+
+      <div class="sidebar-footer">
+        <!-- Nút mở Bảng Điều Khiển Admin (Chỉ hiện khi là Admin) -->
+        <button class="admin-panel-btn" id="openAdminBtn" style="display: none;">
+          <i class="fa-solid fa-shield-halved"></i> Bảng Quản Trị Admin
+        </button>
+
+        <!-- User Profile & Gói VIP Widget -->
+        <div class="user-profile-widget">
+          <div class="user-avatar-badge" id="userAvatarBadge">G</div>
+          <div class="user-info">
+            <span class="user-name" id="currentEmail">user@gmail.com</span>
+            <div class="user-plan-status" id="userPlanStatus">
+              <span class="plan-tag free" id="planTag">Gói Thường</span>
+              <button class="upgrade-link-btn" id="openUpgradeModalBtn">Nâng Cấp VIP</button>
+            </div>
+          </div>
+          <button class="logout-btn" id="logoutBtn" title="Đăng xuất">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
+        <div class="engine-status" id="engineStatus">
+          <span class="status-dot offline"></span>
+          <span class="status-text">Đang kiểm tra Ollama...</span>
+        </div>
+
+        <button class="settings-btn" id="openSettingsBtn">
+          <i class="fa-solid fa-gear"></i> Cấu hình AI & Bộ Não
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Container -->
+    <main class="chat-container">
+      <header class="chat-header">
+        <div class="header-left">
+          <button class="menu-toggle-btn" id="sidebarToggle">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="model-picker-wrapper">
+            <i class="fa-solid fa-microchip model-icon"></i>
+            <select id="modelSelector" class="model-selector">
+              <optgroup label="🏠 Cục bộ / Offline (Bảo mật 100%)">
+                <option value="qwen2.5:3b" selected>Qwen 2.5 3B (Tối ưu cho RTX 3050 - Cực mượt)</option>
+                <option value="llama3.2:3b">Llama 3.2 3B (Mô hình Meta - Siêu nhanh)</option>
+              </optgroup>
+              <optgroup label="☁️ Đám Mây (Dành Cho VIP & Admin)">
+                <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (Siêu Trí Tuệ Tương Đương Claude 3.5)</option>
+                <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (Tốc độ cao)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="header-right">
+          <span class="badge" id="modeBadge">Bảo mật Offline</span>
+        </div>
+      </header>
+
+      <!-- Message Flow -->
+      <section class="messages-flow" id="messagesFlow">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-icon">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+          <h2 id="welcomeGreeting">NexusAI Studio</h2>
+          <p>Trợ lý AI đa năng hỗ trợ tư duy sâu, giải quyết bài toán phức tạp và đọc tài liệu nội bộ.</p>
+          <div class="suggestion-cards">
+            <div class="card" onclick="sendQuickPrompt('Hãy giải thích kiến trúc Transformer trong AI bằng ngôn từ dễ hiểu và vẽ sơ đồ hoạt động.')">
+              <i class="fa-solid fa-brain"></i>
+              <span>Giải thích cấu trúc Transformer AI</span>
+            </div>
+            <div class="card" onclick="sendQuickPrompt('Lập kế hoạch chiến lược phát triển sản phẩm AI SaaS phục vụ hàng nghìn người dùng.')">
+              <i class="fa-solid fa-rocket"></i>
+              <span>Kế hoạch phát triển AI SaaS</span>
+            </div>
+            <div class="card" onclick="sendQuickPrompt('Viết một module bảo mật kiểm tra quyền Admin và phân quyền người dùng trong Python.')">
+              <i class="fa-solid fa-shield-virus"></i>
+              <span>Viết code Auth & RBAC Python</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Input Area -->
+      <footer class="chat-input-area">
+        <div class="attachment-preview" id="attachmentPreview" style="display: none;">
+          <i class="fa-solid fa-file-lines"></i>
+          <span class="file-name" id="attachedFileName">document.txt</span>
+          <button class="remove-attachment-btn" id="removeAttachmentBtn">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="input-box-wrapper">
+          <input type="file" id="fileUploadInput" style="display: none;" accept=".txt,.md,.docx,.json,.py,.js,.html,.css,.csv">
+          <button class="action-btn" id="attachBtn" title="Tải file tài liệu lên (Hỏi đáp tài liệu - RAG)">
+            <i class="fa-solid fa-paperclip"></i>
+          </button>
+
+          <textarea 
+            id="chatInput" 
+            placeholder="Nhập tin nhắn... (Shift + Enter để xuống dòng, Enter để gửi)" 
+            rows="1"
+          ></textarea>
+
+          <button class="send-btn" id="sendBtn" title="Gửi tin nhắn">
+            <i class="fa-solid fa-arrow-up"></i>
+          </button>
+        </div>
+        <div class="input-footer-note">
+          NexusAI Studio • Admin: TRƯƠNG THUỴ ANH QUÂN • Thanh toán VietQR tự động.
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- MODAL BẢNG GIÁ CHỌN GÓI VIP (1 THÁNG, 3 THÁNG, 9 THÁNG, 1 NĂM) -->
+  <div class="modal-overlay" id="upgradeModal" style="display: none;">
+    <div class="modal-card upgrade-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-crown gold-icon"></i> Nâng Cấp Gói VIP NexusAI Pro</h3>
+        <button class="close-modal-btn" id="closeUpgradeBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="upgrade-subtitle">Chọn gói VIP để mở khóa mã QR thanh toán với số tiền được điền tự động chính xác.</p>
+        
+        <div class="upgrade-options-grid">
+          <!-- 1 Tháng -->
+          <div class="upgrade-plan-box" onclick="openPaymentQR('1_month', 99000, 'VIP 1 Tháng')">
+            <div class="box-duration">1 Tháng</div>
+            <div class="box-price">99.000 đ</div>
+            <div class="box-sub">Thanh toán theo tháng</div>
+            <button class="select-plan-action">Quét QR Thanh Toán</button>
+          </div>
+
+          <!-- 3 Tháng -->
+          <div class="upgrade-plan-box" onclick="openPaymentQR('3_months', 269000, 'VIP 3 Tháng')">
+            <div class="box-tag">Giảm 10%</div>
+            <div class="box-duration">3 Tháng</div>
+            <div class="box-price">269.000 đ</div>
+            <div class="box-sub">~89.000 đ / tháng</div>
+            <button class="select-plan-action">Quét QR Thanh Toán</button>
+          </div>
+
+          <!-- 9 Tháng -->
+          <div class="upgrade-plan-box" onclick="openPaymentQR('9_months', 699000, 'VIP 9 Tháng')">
+            <div class="box-tag">Giảm 22%</div>
+            <div class="box-duration">9 Tháng</div>
+            <div class="box-price">699.000 đ</div>
+            <div class="box-sub">~77.000 đ / tháng</div>
+            <button class="select-plan-action">Quét QR Thanh Toán</button>
+          </div>
+
+          <!-- 1 Năm (Best Choice) -->
+          <div class="upgrade-plan-box popular" onclick="openPaymentQR('1_year', 799000, 'VIP 1 Năm')">
+            <div class="box-tag gold-tag">Tiết kiệm 33% • Khuyên dùng</div>
+            <div class="box-duration">1 Năm (12 Tháng)</div>
+            <div class="box-price">799.000 đ</div>
+            <div class="box-sub">Chỉ ~66.000 đ / tháng</div>
+            <button class="select-plan-action gold-btn">Quét QR VIP 1 Năm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL THANH TOÁN QUÉT MÃ VIETQR TỰ ĐỘNG -->
+  <div class="modal-overlay" id="paymentQrModal" style="display: none;">
+    <div class="modal-card payment-qr-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-qrcode gold-icon"></i> Quét Mã QR Thanh Toán Ngân Hàng</h3>
+        <button class="close-modal-btn" id="closePaymentQrBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body qr-modal-body">
+        <div class="qr-code-wrapper">
+          <div class="qr-image-container">
+            <img id="vietQrImg" src="" alt="Mã VietQR Thanh Toán">
+            <div class="qr-loading-spinner" id="qrLoading">Đang tải mã QR...</div>
+          </div>
+          <div class="qr-scan-guide">
+            <i class="fa-solid fa-camera"></i> Mở ứng dụng Ngân hàng hoặc MoMo để quét mã. <strong>Số tiền và nội dung sẽ tự động điền chính xác!</strong>
+          </div>
+        </div>
+
+        <div class="bank-details-card">
+          <div class="detail-row">
+            <span class="detail-label">Ngân hàng:</span>
+            <span class="detail-val highlight">MB Bank (Ngân Hàng Quân Đội)</span>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Số tài khoản (STK):</span>
+            <div class="copy-val-wrapper">
+              <span class="detail-val copyable" id="qrStkText">0379340113</span>
+              <button class="copy-mini-btn" onclick="copyToClipboard('0379340113')"><i class="fa-regular fa-copy"></i></button>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Chủ tài khoản:</span>
+            <span class="detail-val highlight" id="qrRecipientText">TRUONG THUY ANH QUAN</span>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Số tiền thanh toán:</span>
+            <div class="copy-val-wrapper">
+              <span class="detail-val price-val" id="qrAmountText">799.000 VNĐ</span>
+              <button class="copy-mini-btn" id="copyAmountBtn"><i class="fa-regular fa-copy"></i></button>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <span class="detail-label">Nội dung chuyển khoản:</span>
+            <div class="copy-val-wrapper">
+              <span class="detail-val content-val" id="qrContentText">NEXUS 1Y 8392</span>
+              <button class="copy-mini-btn" id="copyContentBtn"><i class="fa-regular fa-copy"></i></button>
+            </div>
+          </div>
+
+          <button class="confirm-paid-btn" id="confirmPaidBtn">
+            <i class="fa-solid fa-circle-check"></i> Tôi Đã Chuyển Khoản Xong
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BẢNG QUẢN TRỊ ADMIN (DÀNH RIÊNG CHO TRUONG THUY ANH QUAN) -->
+  <div class="modal-overlay" id="adminModal" style="display: none;">
+    <div class="modal-card admin-dashboard-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-crown gold-icon"></i> Bảng Quản Trị Hệ Thống - Admin TRƯƠNG THUỴ ANH QUÂN</h3>
+        <button class="close-modal-btn" id="closeAdminBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="admin-stats-row">
+          <div class="stat-box">
+            <div class="stat-title">Tổng Thành Viên</div>
+            <div class="stat-num" id="adminTotalUsers">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-title">Doanh Thu Ước Tính</div>
+            <div class="stat-num gold-text" id="adminTotalRevenue">0 VNĐ</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-title">Chủ Tài Khoản Nhận Tiền</div>
+            <div class="stat-val">TRƯƠNG THUỴ ANH QUÂN</div>
+            <small>STK MB: 0379340113</small>
+          </div>
+        </div>
+
+        <!-- Khối Giao Dịch Chờ Admin Nhận Tiền Và Duyệt VIP -->
+        <div class="pending-section" id="pendingSection">
+          <h4 class="admin-section-title pending-title">
+            <i class="fa-solid fa-bell fa-shake gold-icon"></i> 
+            Yêu Cầu Chờ Bạn Kiểm Tra Tài Khoản & Duyệt VIP (<span id="pendingCount">0</span>)
+          </h4>
+          <div class="admin-table-wrapper" style="margin-bottom: 20px;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Khách Hàng (Gmail)</th>
+                  <th>Gói Mua</th>
+                  <th>Số Tiền Cần Nhận</th>
+                  <th>Nội Dung CK Để So Khớp</th>
+                  <th>Thao Tác Duyệt</th>
+                </tr>
+              </thead>
+              <tbody id="adminPendingTableBody">
+                <!-- Render bằng JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <h4 class="admin-section-title"><i class="fa-solid fa-users"></i> Quản Lý Toàn Bộ Người Dùng</h4>
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Gmail</th>
+                <th>Vai trò</th>
+                <th>Gói Cước</th>
+                <th>Hạn Dùng</th>
+                <th>Hành Động Cấp VIP</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <!-- Render bằng JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Cài đặt AI & Hướng Dẫn Tư Duy -->
+  <div class="modal-overlay" id="settingsModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-sliders"></i> Cài Đặt Hệ Thống & Bộ Não AI</h3>
+        <button class="close-modal-btn" id="closeSettingsBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>URL Máy Chủ Ollama Local:</label>
+          <input type="text" id="settingOllamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
+          <small>Địa chỉ máy chủ cục bộ chạy trên máy bạn (mặc định port 11434).</small>
+        </div>
+
+        <div class="form-group">
+          <label>Google Gemini API Key (Mở khóa siêu trí tuệ đám mây):</label>
+          <input type="password" id="settingGeminiKey" placeholder="AIzaSy...">
+          <small>Lấy API Key miễn phí tại <a href="https://aistudio.google.com" target="_blank" style="color: #10a37f;">aistudio.google.com</a>.</small>
+        </div>
+
+        <div class="form-group">
+          <label>System Prompt (Chỉ dẫn tư duy và phong cách):</label>
+          <textarea id="settingSystemPrompt" rows="4" placeholder="Để trống để sử dụng Master System Prompt thông minh mặc định..."></textarea>
+          <small>Mặc định đã được tối ưu hóa để AI thông minh tương đương ChatGPT & Gemini.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="save-settings-btn" id="saveSettingsBtn">Lưu Thiết Lập</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
