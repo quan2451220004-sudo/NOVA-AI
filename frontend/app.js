@@ -713,7 +713,7 @@ async function checkEngineHealth() {
       dot.className = 'status-dot online';
       txt.textContent = 'Cloud AI: Sẵn sàng (Gemini)';
       if (modelSelector && modelSelector.value.startsWith('qwen')) {
-        modelSelector.value = 'gemini-2.0-flash';
+        modelSelector.value = 'gemini-2.5-flash';
         if (modeBadge) modeBadge.textContent = '⚡ Siêu Trí Tuệ Gemini';
       }
     }

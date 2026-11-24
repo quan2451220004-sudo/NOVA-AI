@@ -680,8 +680,11 @@ def stream_gemini_response(messages, model_name, api_key):
         yield f"data: {json.dumps({'error': 'Chưa cấu hình Gemini API Key! Hãy nhập API Key trong phần Cài đặt hoặc đặt biến môi trường GEMINI_API_KEY trên Cloud.'})}\n\n"
         return
 
-    target_model = "gemini-2.0-flash" if "2.0" in model_name else "gemini-1.5-flash"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:streamGenerateContent?key={api_key}&alt=sse"
+    # Danh sách model ưu tiên (tự động thử model mới nhất và fallback thông minh)
+    if "1.5" in model_name:
+        candidate_models = ["gemini-1.5-flash", "gemini-2.5-flash"]
+    else:
+        candidate_models = ["gemini-2.5-flash", "gemini-1.5-flash"]
 
     contents = []
     system_instruction = None
@@ -700,12 +703,31 @@ def stream_gemini_response(messages, model_name, api_key):
     if system_instruction:
         payload["systemInstruction"] = system_instruction
 
-    try:
-        req = requests.post(url, json=payload, stream=True, timeout=120)
-        if req.status_code != 200:
-            yield f"data: {json.dumps({'error': f'Lỗi Gemini API ({req.status_code}): {req.text}'})}\n\n"
-            return
+    req = None
+    last_error = ""
 
+    for target_model in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:streamGenerateContent?key={api_key}&alt=sse"
+        try:
+            r = requests.post(url, json=payload, stream=True, timeout=120)
+            if r.status_code == 200:
+                req = r
+                break
+            elif r.status_code == 404:
+                last_error = r.text
+                continue
+            else:
+                yield f"data: {json.dumps({'error': f'Lỗi Gemini API ({r.status_code}): {r.text}'})}\n\n"
+                return
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    if not req or req.status_code != 200:
+        yield f"data: {json.dumps({'error': f'Không thể kết nối mô hình Gemini: {last_error}'})}\n\n"
+        return
+
+    try:
         for line in req.iter_lines():
             if line:
                 line_str = line.decode('utf-8')
